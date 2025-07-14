@@ -1,0 +1,132 @@
+ #!/bin/bash
+
+pausa() { sleep 2; }
+
+clear
+echo "🗂️ Benvenuto in Archiviatore!"
+echo ""
+echo "👉 Vuoi comprimere file o cartelle? Premi 1"
+echo "👉 Vuoi decomprimere un archivio .tar.zst? Premi 2"
+echo "👉 Vuoi decriptare un archivio .7z cifrato? Premi 3"
+echo ""
+read -p "➡️ Inserisci la tua scelta [1/2/3]: " scelta
+
+### ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### 🧵 OPZIONE 1: COMPRESSIONE
+### ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if [[ "$scelta" == "1" ]]; then
+    echo "📦 Hai scelto di comprimere file o cartelle."
+
+    if ! command -v zstd &> /dev/null; then
+        echo "❌ 'zstd' non è installato."
+        pausa
+        exit 1
+    fi
+
+    if ! command -v 7z &> /dev/null && ! command -v 7za &> /dev/null; then
+        echo "❌ '7z' non trovato. Installa 7-Zip o il pacchetto 'p7zip-full'."
+        pausa
+        exit 1
+    fi
+
+    zipcmd=$(command -v 7z || command -v 7za)
+
+    read -p "📂 Inserisci i percorsi da comprimere (separati da spazio): " -a sorgenti
+    validi=()
+    for e in "${sorgenti[@]}"; do
+        [ -e "$e" ] && validi+=("$e") || echo "⚠️ '$e' non esiste, ignorato."
+    done
+    [ ${#validi[@]} -eq 0 ] && echo "❌ Nessun file valido." && exit 1
+
+    read -p "📁 Inserisci il nome dell'archivio (senza estensione) [default=~/archivio]: " archivio
+    [ -z "$archivio" ] && archivio="$HOME/archivio"
+    archivio="${archivio%.tar.zst}.tar.zst"
+
+    [ -e "$archivio" ] && read -p "⚠️ '$archivio' esiste già. Sovrascriverlo? [s/N]: " conferma && [[ ! "$conferma" =~ ^[sS]$ ]] && echo "🛑 Compressione annullata." && exit 1
+
+    read -p "🔧 Livello di compressione zstd (0–19) [default=19]: " livello
+    [[ ! "$livello" =~ ^[0-9]+$ ]] || [ "$livello" -lt 0 ] || [ "$livello" -gt 22 ] && livello=19
+
+    temp_tar=$(mktemp /tmp/temp_archive.XXXXXX.tar)
+    mapfile -t filelist < <(find "${validi[@]}" -type f)
+    totale=${#filelist[@]}
+    echo "📁 Trovati $totale file da comprimere."
+
+    count=0
+    for file in "${filelist[@]}"; do
+        ((count++))
+        echo "➕ [$count/$totale] $(basename "$file")"
+        tar --append --file="$temp_tar" "$file"
+    done
+
+    echo "⚙️ Sto comprimendo con zstd..."
+    zstd -$livello "$temp_tar" -o "$archivio"
+    rm -f "$temp_tar"
+    echo "✅ Archivio creato: $archivio"
+
+    read -p "🔐 Vuoi proteggere l'archivio con password usando 7-Zip? [s/N]: " proteggi
+    if [[ "$proteggi" =~ ^[sS]$ ]]; then
+        read -s -p "🔑 Inserisci la password: " zip_pass
+        echo ""
+        "$zipcmd" a -t7z -p"$zip_pass" -mhe=on "${archivio}.7z" "$archivio"
+        echo "✅ Archivio cifrato: ${archivio}.7z"
+        read -p "🗑️ Vuoi eliminare l'originale .tar.zst? [s/N]: " cancella
+        [[ "$cancella" =~ ^[sS]$ ]] && rm -f "$archivio" && echo "🧹 Originale eliminato."
+    fi
+    echo -e "\a"
+
+### ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### 📤 OPZIONE 2: DECOMPRESSIONE
+### ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+elif [[ "$scelta" == "2" ]]; then
+    echo "📦 Hai scelto di decomprimere un archivio .tar.zst."
+
+    read -p "📂 Inserisci il percorso dell'archivio da estrarre: " archivio
+    [ ! -e "$archivio" ] && echo "❌ Archivio non trovato." && exit 1
+
+    read -p "📁 Dove vuoi estrarre i file? [default=~/ArchiveTemp]: " destinazione
+    [ -z "$destinazione" ] && destinazione="$HOME/ArchiveTemp"
+    [ ! -d "$destinazione" ] && mkdir -p "$destinazione"
+
+    tar -I zstd -xf "$archivio" -C "$destinazione"
+    echo "✅ File estratti in: $destinazione"
+
+    read -p "🗑️ Vuoi eliminare l'archivio .tar.zst originale? [s/N]: " cancella
+    [[ "$cancella" =~ ^[sS]$ ]] && rm -f "$archivio" && echo "🧹 Archivio eliminato."
+    echo -e "\a"
+
+### ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### 🔓 OPZIONE 3: DECRIPTARE + ESTRARRE
+### ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+elif [[ "$scelta" == "3" ]]; then
+    echo "🔐 Hai scelto di decriptare un archivio .7z."
+
+    if ! command -v 7z &> /dev/null && ! command -v 7za &> /dev/null; then
+        echo "❌ '7z' non è disponibile. Installa 7-Zip o il pacchetto 'p7zip-full'."
+        exit 1
+    fi
+
+    zipcmd=$(command -v 7z || command -v 7za)
+
+    read -p "📂 Inserisci il percorso dell'archivio .7z da decriptare: " cifrato
+    [ ! -e "$cifrato" ] && echo "❌ Archivio .7z non trovato." && exit 1
+
+    read -p "📁 Dove vuoi estrarre i file? [default=~/ArchiveTemp]: " destinazione
+    [ -z "$destinazione" ] && destinazione="$HOME/ArchiveTemp"
+    [ ! -d "$destinazione" ] && mkdir -p "$destinazione"
+
+    echo "🔑 Ti verrà richiesta la password da 7-Zip..."
+    "$zipcmd" x "$cifrato" -o"$destinazione"
+    echo "✅ File estratti in: $destinazione"
+
+    read -p "🗑️ Vuoi eliminare l'archivio .7z originale? [s/N]: " clean
+    [[ "$clean" =~ ^[sS]$ ]] && rm -f "$cifrato" && echo "🧹 File cifrato eliminato."
+    echo -e "\a"
+
+### ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### ❌ SCELTA NON VALIDA
+### ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+else
+    echo "❌ Scelta non riconosciuta. Riprova scegliendo 1, 2 o 3."
+    exit 1
+fi
