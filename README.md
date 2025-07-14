@@ -6,4 +6,11 @@ Script che aiuta ad archiviare file e cartelle e volendo a criptarne il contenut
   2. Decomprimere un archivio ZSTD;
   3. Decriptare un archivio 7z;  
 
-Il file dovrebbe essere già eseguibile.
+per installarlo digitare nel terminale:  
+
+
+wget -O /usr/local/bin/archiviatore https://github.com/RootGPT-YouTube/Archiviatore/blob/main/archiviatore  
+
+Il file dovrebbe essere già eseguibile, in caso contrario digitare:  
+
+sudo chmod +x /usr/local/bin/archiviatore
