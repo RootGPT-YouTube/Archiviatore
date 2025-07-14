@@ -17,4 +17,4 @@ sudo chmod +x /usr/local/bin/archiviatore
 
 Una volta installato basterà scrivere archiviatore nel terminale e seguire il prompt a schermo.
 
-Un consiglio spassionato: nel terminale spostati nella cartella contenente il file o la cartella da comprimere o apri il terminale direttamente in loco, così dovrai solo scrivere il nome del file invece di tutto il percorso del file. Anche quando l'app ti chiederà dove vuoi salvare l'archivio compresso, digita solo il nome, così facendo te lo salverà nella home con il nome che hai scelto.
+Un consiglio spassionato: nel terminale spostati nella cartella contenente il file o la cartella da comprimere, oppure apri il terminale direttamente in nella locazione scelta, così dovrai solo scrivere il nome del file invece dell'intero percorso. Anche quando l'app ti chiederà dove vuoi salvare l'archivio compresso, digita solo il nome, così facendo te lo salverà nella home con il nome che hai scelto.
