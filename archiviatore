@@ -1,6 +1,11 @@
- #!/bin/bash
+#!/bin/bash
 
 pausa() { sleep 2; }
+
+ARCHIVE_TEMP="$HOME/ArchiveTemp"
+TEMP_DIR="$ARCHIVE_TEMP/temp"
+
+trap 'rm -rf "$TEMP_DIR"' EXIT
 
 clear
 echo "🗂️ Benvenuto in Archiviatore!"
@@ -31,7 +36,9 @@ if [[ "$scelta" == "1" ]]; then
 
     zipcmd=$(command -v 7z || command -v 7za)
 
+    echo "ℹ️ Se una cartella ha spazi nel nome, usa il carattere \\ per unirli (es: Cartella\\ Foto)"
     read -p "📂 Inserisci i percorsi da comprimere (separati da spazio): " -a sorgenti
+
     validi=()
     for e in "${sorgenti[@]}"; do
         [ -e "$e" ] && validi+=("$e") || echo "⚠️ '$e' non esiste, ignorato."
@@ -47,7 +54,9 @@ if [[ "$scelta" == "1" ]]; then
     read -p "🔧 Livello di compressione zstd (0–19) [default=19]: " livello
     [[ ! "$livello" =~ ^[0-9]+$ ]] || [ "$livello" -lt 0 ] || [ "$livello" -gt 22 ] && livello=19
 
-    temp_tar=$(mktemp /tmp/temp_archive.XXXXXX.tar)
+    mkdir -p "$TEMP_DIR"
+    temp_tar="$TEMP_DIR/temp_archive.tar"
+
     mapfile -t filelist < <(find "${validi[@]}" -type f)
     totale=${#filelist[@]}
     echo "📁 Trovati $totale file da comprimere."
@@ -61,7 +70,6 @@ if [[ "$scelta" == "1" ]]; then
 
     echo "⚙️ Sto comprimendo con zstd..."
     zstd -$livello "$temp_tar" -o "$archivio"
-    rm -f "$temp_tar"
     echo "✅ Archivio creato: $archivio"
 
     read -p "🔐 Vuoi proteggere l'archivio con password usando 7-Zip? [s/N]: " proteggi
@@ -73,6 +81,7 @@ if [[ "$scelta" == "1" ]]; then
         read -p "🗑️ Vuoi eliminare l'originale .tar.zst? [s/N]: " cancella
         [[ "$cancella" =~ ^[sS]$ ]] && rm -f "$archivio" && echo "🧹 Originale eliminato."
     fi
+    echo "🧽 Pulizia dei file temporanei completata."
     echo -e "\a"
 
 ### ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -85,7 +94,7 @@ elif [[ "$scelta" == "2" ]]; then
     [ ! -e "$archivio" ] && echo "❌ Archivio non trovato." && exit 1
 
     read -p "📁 Dove vuoi estrarre i file? [default=~/ArchiveTemp]: " destinazione
-    [ -z "$destinazione" ] && destinazione="$HOME/ArchiveTemp"
+    [ -z "$destinazione" ] && destinazione="$ARCHIVE_TEMP"
     [ ! -d "$destinazione" ] && mkdir -p "$destinazione"
 
     tar -I zstd -xf "$archivio" -C "$destinazione"
@@ -112,7 +121,7 @@ elif [[ "$scelta" == "3" ]]; then
     [ ! -e "$cifrato" ] && echo "❌ Archivio .7z non trovato." && exit 1
 
     read -p "📁 Dove vuoi estrarre i file? [default=~/ArchiveTemp]: " destinazione
-    [ -z "$destinazione" ] && destinazione="$HOME/ArchiveTemp"
+    [ -z "$destinazione" ] && destinazione="$ARCHIVE_TEMP"
     [ ! -d "$destinazione" ] && mkdir -p "$destinazione"
 
     echo "🔑 Ti verrà richiesta la password da 7-Zip..."
