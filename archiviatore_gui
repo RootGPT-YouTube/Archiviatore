@@ -1,0 +1,78 @@
+#!/bin/bash
+
+pausa() { sleep 2; }
+
+# 🧪 Controllo e suggerimento installazione multipiattaforma
+check_dep() {
+  comando="$1"
+  pacchetto="$2"
+
+  if ! command -v "$comando" &> /dev/null; then
+    echo "❌ Dipendenza mancante: $comando"
+
+    if command -v apt &> /dev/null; then
+      echo "💡 Installa con: sudo apt install $pacchetto"
+    elif command -v dnf &> /dev/null; then
+      echo "💡 Installa con: sudo dnf install $pacchetto"
+    elif command -v pacman &> /dev/null; then
+      echo "💡 Installa con: sudo pacman -S $pacchetto"
+    elif command -v zypper &> /dev/null; then
+      echo "💡 Installa con: sudo zypper install $pacchetto"
+    else
+      echo "❓ Package manager non rilevato. Installa '$pacchetto' manualmente."
+    fi
+
+    pausa
+    exit 1
+  fi
+}
+
+# 📋 Controlla dipendenze principali
+check_dep yad yad
+check_dep zstd zstd
+check_dep 7z p7zip-full || check_dep 7za p7zip-full
+
+zipcmd=$(command -v 7z || command -v 7za)
+
+# 📦 Selezione file/cartelle
+input=$(yad --file-selection --multiple --title="Seleziona file e/o cartelle da comprimere")
+[ -z "$input" ] && exit 1
+IFS="|" read -r -a sorgenti <<< "$input"
+
+# 📁 Cartella di destinazione
+destinazione=$(yad --file-selection --directory --title="Scegli dove salvare l'archivio" --filename="$HOME/ArchiveTemp/")
+[ -z "$destinazione" ] && exit 1
+
+# ✏️ Nome archivio
+archivio=$(yad --entry --title="Nome Archivio" --text="Inserisci il nome (senza estensione):" --entry-text="archivio")
+[ -z "$archivio" ] && exit 1
+archivio="$destinazione/$archivio"
+mkdir -p "$destinazione"
+
+# 🧼 Cartella temporanea
+TEMP_DIR="$HOME/ArchiveTemp/temp"
+mkdir -p "$TEMP_DIR"
+temp_tar="$TEMP_DIR/temp_archive.tar"
+rm -f "$temp_tar"
+
+# 📍 Crea archivio TAR
+for item in "${sorgenti[@]}"; do
+  tar --append --file="$temp_tar" "$item"
+done
+
+# ⚙️ Comprime con zstd
+zstd "$temp_tar" -o "$archivio.tar.zst"
+
+# 🔐 Cifratura 7z opzionale
+yad --question --title="Cifrare?" --text="Vuoi proteggere l'archivio con password?" --button="Sì":0 --button="No":1
+if [[ $? -eq 0 ]]; then
+  password=$(yad --entry --hide-text --title="Password 7-Zip" --text="Inserisci la password:")
+  [ -z "$password" ] && exit 1
+  "$zipcmd" a -t7z -p"$password" -mhe=on "$archivio.7z" "$archivio.tar.zst"
+  rm -f "$archivio.tar.zst"
+  yad --info --title="Archiviatore" --text="✅ Archivio cifrato creato:\n$archivio.7z"
+else
+  yad --info --title="Archiviatore" --text="✅ Archivio creato:\n$archivio.tar.zst"
+fi
+
+rm -rf "$TEMP_DIR"
