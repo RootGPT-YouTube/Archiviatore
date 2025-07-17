@@ -8,7 +8,7 @@ Script che aiuta ad archiviare file e cartelle e volendo a criptarne il contenut
 
 per installarlo digita nel terminale:  
 
-git clone https://github.com/RootGPT-YouTube/Archiviatore.git && sudo cp Archiviatore/archiviatore /usr/local/bin/archiviatore && sudo rm -fr Archiviatore && sudo chmod +x /usr/local/bin/archiviatore
+git clone https://github.com/RootGPT-YouTube/Archiviatore.git && sudo cp Archiviatore/archiviatore /usr/local/bin/archiviatore && sudo cp Archiviatore/archiviatore_gui /usr/local/bin/archiviatore_gui && sudo rm -fr Archiviatore && sudo chmod +x /usr/local/bin/archiviatore && sudo chmod +x /usr/local/bin/archiviatore_gui
 
 Una volta installato basterà scrivere archiviatore nel terminale e seguire il prompt a schermo.
 
